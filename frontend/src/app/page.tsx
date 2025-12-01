@@ -1,10 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Result =
   | { ok: true; status: string; timestamp: string }
   | { ok: false; error: string };
+
+const demos = [
+  {
+    href: "/realtime",
+    title: "Real-Time Updates",
+    description: "Compare SSE, WebSocket, Polling, and Long Polling patterns",
+  },
+];
 
 export default function Home() {
   const [result, setResult] = useState<Result | null>(null);
@@ -25,37 +36,54 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex flex-col items-center gap-8 p-8">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-          System Design Demo
-        </h1>
+    <div>
+      <h1 className="text-3xl font-bold">System Design Demo</h1>
+        <p className="mt-2 text-muted-foreground">
+          Interactive demonstrations of common system design patterns and concepts.
+          Built with Next.js and FastAPI.
+        </p>
 
-        <button
-          onClick={checkBackend}
-          disabled={loading}
-          className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Checking..." : "Check Backend"}
-        </button>
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold">Demos</h2>
+          <div className="mt-4 grid gap-4">
+            {demos.map((demo) => (
+              <Link key={demo.href} href={demo.href}>
+                <Card className="transition-colors hover:bg-muted/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">{demo.title}</CardTitle>
+                    <CardDescription>{demo.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
 
-        {result && (
-          result.ok ? (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-              <p className="text-green-800 dark:text-green-200">
-                Status: {result.status}
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                Timestamp: {result.timestamp}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-              <p className="text-red-800 dark:text-red-200">Error: {result.error}</p>
-            </div>
-          )
-        )}
-      </main>
-    </div>
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold">Backend Status</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check connectivity to the FastAPI backend (has 50% random error rate for demo purposes)
+          </p>
+          <div className="mt-4 flex items-center gap-4">
+            <Button onClick={checkBackend} disabled={loading} variant="outline">
+              {loading ? "Checking..." : "Check Backend"}
+            </Button>
+            {result && (
+              <span className={result.ok ? "text-green-600" : "text-destructive"}>
+                {result.ok ? `OK - ${result.timestamp}` : `Error: ${result.error}`}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold">Architecture</h2>
+          <div className="mt-4 rounded-lg bg-muted p-4 font-mono text-sm">
+            <div>Frontend: Next.js (port 3000)</div>
+            <div>Backend: FastAPI (port 8000)</div>
+            <div>Proxy: /api/* → localhost:8000/api/*</div>
+          </div>
+        </div>
+      </div>
   );
 }

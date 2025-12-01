@@ -3,7 +3,10 @@ import random
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routers.realtime import router as realtime_router
+
 app = FastAPI()
+app.include_router(realtime_router)
 
 app.add_middleware(
     CORSMiddleware,
