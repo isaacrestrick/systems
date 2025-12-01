@@ -1,13 +1,44 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface LogEntry {
   timestamp: string;
   message: string;
 }
+
+type PatternType = "sse" | "websocket" | "polling" | "long-polling";
+
+const patternColors: Record<PatternType, { bg: string; text: string; border: string }> = {
+  sse: {
+    bg: "bg-blue-500/10",
+    text: "text-blue-600",
+    border: "border-blue-500/20",
+  },
+  websocket: {
+    bg: "bg-purple-500/10",
+    text: "text-purple-600",
+    border: "border-purple-500/20",
+  },
+  polling: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600",
+    border: "border-amber-500/20",
+  },
+  "long-polling": {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600",
+    border: "border-emerald-500/20",
+  },
+};
 
 function Section({
   title,
@@ -16,6 +47,7 @@ function Section({
   onStart,
   onStop,
   logs,
+  pattern,
 }: {
   title: string;
   description: string;
@@ -23,41 +55,79 @@ function Section({
   onStart: () => void;
   onStop: () => void;
   logs: LogEntry[];
+  pattern: PatternType;
 }) {
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const colors = patternColors[pattern];
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
-        <div className="min-w-0 flex-1">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription className="text-xs truncate">{description}</CardDescription>
-        </div>
-        <div className="flex items-center gap-2 ml-2">
-          <span
-            className={`h-2 w-2 rounded-full ${
-              running ? "bg-green-500" : "bg-muted"
-            }`}
-          />
+    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
+      <CardHeader className="space-y-3 p-4 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    running ? "bg-current animate-pulse" : "bg-current opacity-40"
+                  }`}
+                />
+                {running ? "Active" : "Idle"}
+              </span>
+            </div>
+            <CardDescription className="text-sm leading-relaxed">
+              {description}
+            </CardDescription>
+          </div>
           <Button
             onClick={running ? onStop : onStart}
             variant={running ? "destructive" : "default"}
             size="sm"
+            className="shrink-0"
           >
             {running ? "Stop" : "Start"}
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-3 pt-0">
-        <div className="h-24 overflow-y-auto rounded-md bg-muted p-2 font-mono text-xs">
-          {logs.length === 0 ? (
-            <span className="text-muted-foreground">No messages yet...</span>
-          ) : (
-            logs.map((log, i) => (
-              <div key={i}>
-                <span className="text-muted-foreground">[{log.timestamp}]</span>{" "}
-                {log.message}
+      <CardContent className="flex-1 p-4 pt-0">
+        <div className="flex h-40 flex-col rounded-lg border bg-muted/50">
+          <div className="flex items-center justify-between border-b px-3 py-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Event Log
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {logs.length} {logs.length === 1 ? "event" : "events"}
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
+            {logs.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                Waiting for events...
               </div>
-            ))
-          )}
+            ) : (
+              <div className="space-y-0.5">
+                {logs.map((log, i) => (
+                  <div
+                    key={i}
+                    className="flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted"
+                  >
+                    <span className="shrink-0 text-muted-foreground">
+                      {log.timestamp}
+                    </span>
+                    <span className="text-foreground">{log.message}</span>
+                  </div>
+                ))}
+                <div ref={logsEndRef} />
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -222,49 +292,58 @@ export default function RealtimePage() {
   }, []);
 
   return (
-    <div>
-      <h1 className="mb-1 text-2xl font-bold">Real-Time Updates</h1>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Comparing SSE, WebSocket, Polling, and Long Polling patterns
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Real-Time Communication Patterns
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Compare different approaches to real-time data streaming between client
+          and server.
         </p>
+      </header>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Section
-            title="Server-Sent Events (SSE)"
-            description="Server pushes events to client over HTTP. One-way communication."
-            running={sseRunning}
-            onStart={startSse}
-            onStop={stopSse}
-            logs={sseLogs}
-          />
+      <div className="grid gap-6 md:grid-cols-2">
+        <Section
+          title="Server-Sent Events"
+          description="One-way server-to-client streaming over HTTP. Ideal for live feeds, notifications, and dashboards."
+          running={sseRunning}
+          onStart={startSse}
+          onStop={stopSse}
+          logs={sseLogs}
+          pattern="sse"
+        />
 
-          <Section
-            title="WebSocket"
-            description="Full-duplex communication. Connects directly to backend (port 8000)."
-            running={wsRunning}
-            onStart={startWs}
-            onStop={stopWs}
-            logs={wsLogs}
-          />
+        <Section
+          title="WebSocket"
+          description="Full-duplex bidirectional communication. Best for chat, gaming, and collaborative apps."
+          running={wsRunning}
+          onStart={startWs}
+          onStop={stopWs}
+          logs={wsLogs}
+          pattern="websocket"
+        />
 
-          <Section
-            title="Polling"
-            description="Client repeatedly requests updates at fixed intervals (2s)."
-            running={pollRunning}
-            onStart={startPolling}
-            onStop={stopPolling}
-            logs={pollLogs}
-          />
+        <Section
+          title="Polling"
+          description="Client requests updates at fixed intervals (2s). Simple but less efficient for frequent updates."
+          running={pollRunning}
+          onStart={startPolling}
+          onStop={stopPolling}
+          logs={pollLogs}
+          pattern="polling"
+        />
 
-          <Section
-            title="Long Polling"
-            description="Client request held open until server has data or timeout."
-            running={longPollRunning}
-            onStart={startLongPolling}
-            onStop={stopLongPolling}
-            logs={longPollLogs}
-          />
-        </div>
+        <Section
+          title="Long Polling"
+          description="Server holds request until data is available. Good fallback when WebSocket isn't an option."
+          running={longPollRunning}
+          onStart={startLongPolling}
+          onStop={stopLongPolling}
+          logs={longPollLogs}
+          pattern="long-polling"
+        />
       </div>
+    </div>
   );
 }
