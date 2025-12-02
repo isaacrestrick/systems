@@ -17,26 +17,16 @@ interface LogEntry {
 
 type PatternType = "sse" | "websocket" | "polling" | "long-polling";
 
-const patternColors: Record<PatternType, { bg: string; text: string; border: string }> = {
-  sse: {
-    bg: "bg-blue-500/10",
-    text: "text-blue-600",
-    border: "border-blue-500/20",
+const statusColors = {
+  active: {
+    bg: "bg-green-500/10",
+    text: "text-green-600",
+    border: "border-green-500/20",
   },
-  websocket: {
-    bg: "bg-purple-500/10",
-    text: "text-purple-600",
-    border: "border-purple-500/20",
-  },
-  polling: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-600",
-    border: "border-amber-500/20",
-  },
-  "long-polling": {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600",
-    border: "border-emerald-500/20",
+  idle: {
+    bg: "bg-orange-500/10",
+    text: "text-orange-600",
+    border: "border-orange-500/20",
   },
 };
 
@@ -58,7 +48,7 @@ function Section({
   pattern: PatternType;
 }) {
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const colors = patternColors[pattern];
+  const colors = running ? statusColors.active : statusColors.idle;
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
