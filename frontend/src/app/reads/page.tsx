@@ -137,114 +137,117 @@ function CacheDemo() {
     setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
   }, []);
 
-  const readNoCache = async () => {
+  // Warm up cache first, then read from it
+  const warmAndRead = async () => {
     setRunning(true);
-    const key = `product:${Math.floor(Math.random() * 10)}`;
-    addLog(`Reading ${key} without cache...`);
+    const key = "product:1";
 
-    const res = await fetch(`${API_BASE}/no-cache/read`, {
+    // First read - cache miss, populates cache
+    addLog(`First read of ${key} (cold cache)...`);
+    const res1 = await fetch(`${API_BASE}/cache/read`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),
     });
-    const data = await res.json();
+    const data1 = await res1.json();
+    addLog(`${data1.latency_ms}ms - MISS (had to query DB)`, "miss");
 
-    addLog(`${data.latency_ms}ms from ${data.source}`, "miss");
-    setStats({ hits: 0, misses: 0, dbReads: data.stats?.db_reads || 0 });
-    setRunning(false);
-  };
+    await new Promise((r) => setTimeout(r, 300));
 
-  const readWithCache = async () => {
-    setRunning(true);
-    const key = `product:${Math.floor(Math.random() * 10)}`;
-    addLog(`Reading ${key} with cache...`);
-
-    const res = await fetch(`${API_BASE}/cache/read`, {
+    // Second read - cache hit
+    addLog(`Second read of ${key} (warm cache)...`);
+    const res2 = await fetch(`${API_BASE}/cache/read`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),
     });
-    const data = await res.json();
+    const data2 = await res2.json();
+    addLog(`${data2.latency_ms}ms - HIT (from cache, ~25x faster!)`, "cache");
 
-    const isHit = data.source === "cache";
-    addLog(
-      `${data.latency_ms}ms from ${data.source}`,
-      isHit ? "cache" : "miss"
-    );
     setStats({
-      hits: data.stats?.cache_hits || 0,
-      misses: data.stats?.cache_misses || 0,
-      dbReads: data.stats?.db_reads || 0,
+      hits: data2.stats?.cache_hits || 0,
+      misses: data2.stats?.cache_misses || 0,
+      dbReads: data2.stats?.db_reads || 0,
     });
     setRunning(false);
   };
 
-  const burstReads = async (useCache: boolean) => {
+  // Compare burst with and without cache
+  const compareBursts = async () => {
     setRunning(true);
-    const endpoint = useCache ? "cache/read" : "no-cache/read";
-    addLog(`Burst: 10 reads ${useCache ? "with" : "without"} cache...`, "start");
 
-    const keys = Array.from({ length: 10 }, () => `product:${Math.floor(Math.random() * 5)}`);
-    const start = Date.now();
+    // Clear cache first
+    await fetch(`${API_BASE}/cache/clear`, { method: "POST" });
 
+    // Burst without cache (always hits DB)
+    addLog("Burst: 10 reads WITHOUT cache...", "start");
+    const keys = ["product:1", "product:2", "product:3", "product:1", "product:2",
+                  "product:1", "product:3", "product:1", "product:2", "product:1"];
+
+    const start1 = Date.now();
+    await Promise.all(
+      keys.map((key) =>
+        fetch(`${API_BASE}/no-cache/read`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key }),
+        })
+      )
+    );
+    const time1 = Date.now() - start1;
+    addLog(`No cache: ${time1}ms total (10 DB queries)`, "miss");
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Clear and burst WITH cache
+    await fetch(`${API_BASE}/cache/clear`, { method: "POST" });
+    addLog("Burst: 10 reads WITH cache (same keys)...", "start");
+
+    const start2 = Date.now();
     const results = await Promise.all(
       keys.map((key) =>
-        fetch(`${API_BASE}/${endpoint}`, {
+        fetch(`${API_BASE}/cache/read`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key }),
         }).then((r) => r.json())
       )
     );
-
-    const totalTime = Date.now() - start;
+    const time2 = Date.now() - start2;
+    const hits = results.filter((r) => r.source === "cache").length;
     const lastStats = results[results.length - 1].stats;
-    const cacheHits = results.filter((r) => r.source === "cache").length;
 
-    addLog(
-      `Completed in ${totalTime}ms (${cacheHits}/10 cache hits)`,
-      cacheHits > 5 ? "success" : "miss"
-    );
-    if (lastStats) {
-      setStats({
-        hits: lastStats.cache_hits || 0,
-        misses: lastStats.cache_misses || 0,
-        dbReads: lastStats.db_reads || 0,
-      });
-    }
+    addLog(`With cache: ${time2}ms total (${hits} cache hits, ${10 - hits} DB queries)`, "cache");
+    addLog(`Saved ${time1 - time2}ms (${Math.round((1 - time2/time1) * 100)}% faster)`, "success");
+
+    setStats({
+      hits: lastStats?.cache_hits || 0,
+      misses: lastStats?.cache_misses || 0,
+      dbReads: lastStats?.db_reads || 0,
+    });
     setRunning(false);
   };
 
-  const clearCache = async () => {
+  const reset = async () => {
     await fetch(`${API_BASE}/cache/clear`, { method: "POST" });
-    addLog("Cache cleared");
-  };
-
-  const reset = () => {
+    await fetch(`${API_BASE}/reset`, { method: "POST" });
     setLogs([]);
     setStats({ hits: 0, misses: 0, dbReads: 0 });
-    clearCache();
   };
 
   return (
     <Section
       title="Cache-Aside Pattern"
-      description="Compare reading directly from DB vs using a cache layer. Cache hits are ~25x faster."
+      description="First read populates cache (miss), subsequent reads are instant (hit). Cache hits are ~25x faster."
       running={running}
       status={running ? "active" : "idle"}
       logs={logs}
     >
-      <Button size="sm" disabled={running} onClick={readNoCache}>
-        Read (No Cache)
+      <Button size="sm" disabled={running} onClick={warmAndRead}>
+        Warm + Read
       </Button>
-      <Button size="sm" disabled={running} onClick={readWithCache}>
-        Read (Cached)
-      </Button>
-      <Button size="sm" variant="outline" disabled={running} onClick={() => burstReads(false)}>
-        Burst (No Cache)
-      </Button>
-      <Button size="sm" variant="outline" disabled={running} onClick={() => burstReads(true)}>
-        Burst (Cached)
+      <Button size="sm" variant="outline" disabled={running} onClick={compareBursts}>
+        Compare Bursts
       </Button>
       <Button size="sm" variant="outline" disabled={running} onClick={reset}>
         Reset
