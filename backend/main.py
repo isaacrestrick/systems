@@ -6,11 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers.realtime import router as realtime_router
 from routers.contention import router as contention_router
 from routers.workflows import router as workflows_router
+from routers.reads import router as reads_router
 
 app = FastAPI()
 app.include_router(realtime_router)
 app.include_router(contention_router)
 app.include_router(workflows_router)
+app.include_router(reads_router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -10,6 +10,7 @@ const navItems = [
   { href: "/realtime", label: "Realtime Endpoints" },
   { href: "/contention", label: "Handling Contention" },
   { href: "/workflows", label: "Multi-Step Processes" },
+  { href: "/reads", label: "Scaling Reads" },
 ];
 
 export default function Sidebar() {
