@@ -212,16 +212,16 @@ function SagaDemo() {
         Run (Success)
       </Button>
       <Button size="sm" variant="outline" disabled={running} onClick={() => startSaga(1)}>
-        Run (Fail Step 2)
+        Fail Step 2
       </Button>
       <Button size="sm" variant="outline" disabled={running} onClick={() => startSaga(2)}>
-        Run (Fail Step 3)
+        Fail Step 3
       </Button>
-      <Button size="sm" variant="ghost" disabled={running} onClick={reset}>
+      <Button size="sm" variant="outline" disabled={running} onClick={reset}>
         Reset
       </Button>
       {steps.length > 0 && (
-        <div className="w-full mt-2 flex gap-1">
+        <div className="w-full flex gap-1">
           {steps.map((step, i) => (
             <div
               key={i}
@@ -320,12 +320,12 @@ function EventSourcingDemo() {
         Withdraw $30
       </Button>
       <Button size="sm" variant="outline" disabled={running || events.length === 0} onClick={replay}>
-        Replay Events
+        Replay
       </Button>
-      <Button size="sm" variant="ghost" disabled={running} onClick={clear}>
+      <Button size="sm" variant="outline" disabled={running} onClick={clear}>
         Reset
       </Button>
-      <div className="w-full mt-2 flex items-center justify-between text-sm">
+      <div className="w-full flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{events.length} events</span>
         <span className="font-mono font-bold">Balance: ${balance}</span>
       </div>
@@ -440,13 +440,13 @@ function DurableExecutionDemo() {
               Recover
             </Button>
           )}
-          <Button size="sm" variant="ghost" disabled={running} onClick={reset}>
+          <Button size="sm" variant="outline" disabled={running} onClick={reset}>
             Reset
           </Button>
         </>
       )}
       {workflowId && (
-        <div className="w-full mt-2 flex gap-1">
+        <div className="w-full flex gap-1">
           {steps.map((step, i) => (
             <div
               key={i}
@@ -529,12 +529,12 @@ function ComparisonDemo() {
       logs={logs}
     >
       <Button size="sm" variant="destructive" disabled={running} onClick={simulateNaive}>
-        Simulate Naive (Fails)
+        Naive (Fails)
       </Button>
       <Button size="sm" disabled={running} onClick={simulateWorkflow}>
-        Simulate Workflow (Recovers)
+        Workflow (Recovers)
       </Button>
-      <Button size="sm" variant="ghost" disabled={running} onClick={() => setLogs([])}>
+      <Button size="sm" variant="outline" disabled={running} onClick={() => setLogs([])}>
         Reset
       </Button>
     </Section>
