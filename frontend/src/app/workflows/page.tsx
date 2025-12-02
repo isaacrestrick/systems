@@ -323,7 +323,7 @@ function EventSourcingDemo() {
         Replay Events
       </Button>
       <Button size="sm" variant="ghost" disabled={running} onClick={clear}>
-        Clear
+        Reset
       </Button>
       <div className="w-full mt-2 flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{events.length} events</span>
@@ -535,7 +535,7 @@ function ComparisonDemo() {
         Simulate Workflow (Recovers)
       </Button>
       <Button size="sm" variant="ghost" disabled={running} onClick={() => setLogs([])}>
-        Clear
+        Reset
       </Button>
     </Section>
   );
