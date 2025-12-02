@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/realtime", label: "Realtime Endpoints" },
+  { href: "/contention", label: "Handling Contention" },
 ];
 
 export default function Sidebar() {

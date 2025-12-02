@@ -4,9 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers.realtime import router as realtime_router
+from routers.contention import router as contention_router
 
 app = FastAPI()
 app.include_router(realtime_router)
+app.include_router(contention_router)
 
 app.add_middleware(
     CORSMiddleware,
