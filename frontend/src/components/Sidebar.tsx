@@ -9,6 +9,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/realtime", label: "Realtime Endpoints" },
   { href: "/contention", label: "Handling Contention" },
+  { href: "/workflows", label: "Multi-Step Processes" },
 ];
 
 export default function Sidebar() {
