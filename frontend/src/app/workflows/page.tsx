@@ -60,13 +60,13 @@ function Section({
 
   return (
     <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-3 p-4 pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5">
+      <CardHeader className="space-y-2 p-3 pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+              <CardTitle className="text-base font-semibold">{title}</CardTitle>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
@@ -76,15 +76,15 @@ function Section({
                 {running ? "Running" : status === "error" ? "Failed" : "Idle"}
               </span>
             </div>
-            <CardDescription className="text-sm leading-relaxed">
+            <CardDescription className="text-xs">
               {description}
             </CardDescription>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">{children}</div>
+        <div className="flex flex-wrap gap-1.5">{children}</div>
       </CardHeader>
-      <CardContent className="flex-1 p-4 pt-0">
-        <div className="flex h-40 flex-col rounded-lg border bg-muted/50">
+      <CardContent className="flex flex-1 flex-col justify-end p-3 pt-0">
+        <div className="flex h-32 flex-col rounded-lg border bg-muted/50">
           <div className="flex items-center justify-between border-b px-3 py-1.5">
             <span className="text-xs font-medium text-muted-foreground">
               Event Log
@@ -550,20 +550,20 @@ export default function WorkflowsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight">
             Multi-Step Processes
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Patterns for reliable, long-running distributed workflows that survive failures.
           </p>
         </div>
-        <Button variant="outline" onClick={resetAll}>Reset All</Button>
+        <Button variant="outline" size="sm" onClick={resetAll}>Reset All</Button>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <SagaDemo />
         <EventSourcingDemo />
         <DurableExecutionDemo />
