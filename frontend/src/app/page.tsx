@@ -3,19 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { demos } from "@/lib/demos";
 
-type Result =
-  | { ok: true; status: string; timestamp: string }
-  | { ok: false; error: string };
-
-const demos = [
-  {
-    href: "/realtime",
-    title: "Real-Time Updates",
-    description: "Compare SSE, WebSocket, Polling, and Long Polling patterns",
-  },
-];
+type Result = | { ok: true; status: string; timestamp: string } | { ok: false; error: string };
 
 export default function Home() {
   const [result, setResult] = useState<Result | null>(null);
@@ -43,23 +34,7 @@ export default function Home() {
           Built with Next.js and FastAPI.
         </p>
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold">Demos</h2>
-          <div className="mt-4 grid gap-4">
-            {demos.map((demo) => (
-              <Link key={demo.href} href={demo.href}>
-                <Card className="transition-colors hover:bg-muted/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{demo.title}</CardTitle>
-                    <CardDescription>{demo.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-8">
+        <div className="mt-6">
           <h2 className="text-xl font-semibold">Backend Status</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Check connectivity to the FastAPI backend (has 50% random error rate for demo purposes)
@@ -76,7 +51,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6">
           <h2 className="text-xl font-semibold">Architecture</h2>
           <div className="mt-4 rounded-lg bg-muted p-4 font-mono text-sm">
             <div>Frontend: Next.js (port 3000)</div>
@@ -84,6 +59,26 @@ export default function Home() {
             <div>Proxy: /api/* → localhost:8000/api/*</div>
           </div>
         </div>
+
+        <div className="mt-6">
+          <h2 className="text-xl font-semibold">Demos</h2>
+          <div className="mt-4 grid gap-4">
+            {demos.map((demo) => (
+              <Link key={demo.href} href={demo.href}>
+                <Card className="transition-colors hover:bg-muted/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <demo.icon className="h-5 w-5" />
+                      {demo.title}
+                    </CardTitle>
+                    <CardDescription>{demo.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+
       </div>
   );
 }
