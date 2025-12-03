@@ -4,14 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { demos } from "@/lib/demos";
+import { Home } from "lucide-react";
 
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/realtime", label: "Realtime Endpoints" },
-  { href: "/contention", label: "Handling Contention" },
-  { href: "/workflows", label: "Multi-Step Processes" },
-  { href: "/reads", label: "Scaling Reads" },
-];
+const navItems = [{ href: "/", title: "Home", icon: Home }, ...demos];
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -30,10 +26,11 @@ export default function Sidebar() {
               href={item.href}
               className={cn(
                 buttonVariants({ variant: isActive ? "secondary" : "ghost" }),
-                "justify-start"
+                "justify-start gap-2"
               )}
             >
-              {item.label}
+              {item.icon && <item.icon className="h-4 w-4" />}
+              {item.title}
             </Link>
           );
         })}
