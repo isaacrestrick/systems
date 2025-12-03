@@ -125,22 +125,23 @@ function Section({
 }
 
 export default function RealtimePage() {
-  // SSE state
+
+  /* SSE state */
   const [sseRunning, setSseRunning] = useState(false);
   const [sseLogs, setSseLogs] = useState<LogEntry[]>([]);
   const sseRef = useRef<EventSource | null>(null);
 
-  // WebSocket state
+  /* WebSocket state */
   const [wsRunning, setWsRunning] = useState(false);
   const [wsLogs, setWsLogs] = useState<LogEntry[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Polling state
+  /* Polling state */
   const [pollRunning, setPollRunning] = useState(false);
   const [pollLogs, setPollLogs] = useState<LogEntry[]>([]);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Long Polling state
+  /* Long Polling state */
   const [longPollRunning, setLongPollRunning] = useState(false);
   const [longPollLogs, setLongPollLogs] = useState<LogEntry[]>([]);
   const longPollAbortRef = useRef<AbortController | null>(null);

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { demos } from "@/lib/demos";
 
-type Result = | { ok: true; status: string; timestamp: string } | { ok: false; error: string };
+type Result =
+  | { ok: true; status: string; timestamp: string }
+  | { ok: false; error: string };
 
 export default function Home() {
   const [result, setResult] = useState<Result | null>(null);
@@ -41,7 +43,7 @@ export default function Home() {
           </p>
           <div className="mt-4 flex items-center gap-4">
             <Button onClick={checkBackend} disabled={loading} variant="outline">
-              {loading ? "Checking..." : "Check Backend"}
+              Check Backend
             </Button>
             {result && (
               <span className={result.ok ? "text-green-600" : "text-destructive"}>
