@@ -1,4 +1,4 @@
-import { Radio, Lock, GitBranch, Database } from "lucide-react";
+import { Radio, Lock, GitBranch, Database, PenLine } from "lucide-react";
 
 export const demos = [
   {
@@ -24,5 +24,11 @@ export const demos = [
     title: "Scaling Reads",
     description: "Understand caching and read replica strategies",
     icon: Database,
+  },
+  {
+    href: "/writes",
+    title: "Scaling Writes",
+    description: "Learn sharding, batching, queues, and write optimization",
+    icon: PenLine,
   },
 ];

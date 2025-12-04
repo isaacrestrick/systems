@@ -151,7 +151,7 @@ export default function RealtimePage() {
     message: string
   ) => {
     const timestamp = new Date().toLocaleTimeString();
-    setter((prev) => [...prev.slice(-19), { timestamp, message }]);
+    setter((prev) => [...prev.slice(-19), { timestamp, message }]); // ?
   };
 
   // SSE handlers
@@ -247,40 +247,58 @@ export default function RealtimePage() {
 
   // Long Polling handlers
   const startLongPolling = useCallback(() => {
+    // Prevent multiple overlapping loops
+    if (longPollRunning) return;
+
+    const controller = new AbortController();
+    longPollAbortRef.current = controller;
     setLongPollRunning(true);
     addLog(setLongPollLogs, "Started long polling");
 
     const longPoll = async () => {
-      const controller = new AbortController();
-      longPollAbortRef.current = controller;
+      while (!controller.signal.aborted) {
+        try {
+          const res = await fetch("/api/realtime/long-poll", {
+            signal: controller.signal,
+          });
 
-      try {
-        const res = await fetch("/api/realtime/long-poll", {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        addLog(
-          setLongPollLogs,
-          `Event: ${data.event}, waited ${data.waited_seconds}s`
-        );
-        if (longPollAbortRef.current === controller) {
-          longPoll();
-        }
-      } catch (e) {
-        if (e instanceof Error && e.name !== "AbortError") {
-          addLog(setLongPollLogs, "Long poll failed");
+          if (controller.signal.aborted) break;
+
+          const data = await res.json();
+          if (controller.signal.aborted) break;
+
+          addLog(
+            setLongPollLogs,
+            `Event: ${data.event}, waited ${data.waited_seconds}s`
+          );
+        } catch (e) {
+          if (e instanceof Error && e.name === "AbortError") {
+            break;
+          }
+          addLog(setLongPollLogs, "Long poll failed; stopping");
+          setLongPollRunning(false);
+          longPollAbortRef.current = null;
+          return;
         }
       }
     };
 
     longPoll();
-  }, []);
+  }, [longPollRunning]);
 
   const stopLongPolling = useCallback(() => {
-    longPollAbortRef.current?.abort();
+    if (!longPollAbortRef.current) return;
+    longPollAbortRef.current.abort();
+    longPollAbortRef.current = null;
     setLongPollRunning(false);
     addLog(setLongPollLogs, "Stopped long polling");
   }, []);
+
+  useEffect(() => {
+    return () => {
+      stopLongPolling();
+    };
+  }, [stopLongPolling]);
 
   return (
     <div className="space-y-6">
