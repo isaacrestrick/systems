@@ -1,141 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DemoSection } from "@/components/DemoSection";
+import { useEventLog } from "@/lib/hooks";
 
 const API_BASE = "http://localhost:8000/api/tasks";
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  type?: string;
-}
-
-const statusColors = {
-  active: {
-    bg: "bg-green-500/10",
-    text: "text-green-600",
-    border: "border-green-500/20",
-  },
-  idle: {
-    bg: "bg-orange-500/10",
-    text: "text-orange-600",
-    border: "border-orange-500/20",
-  },
-  error: {
-    bg: "bg-red-500/10",
-    text: "text-red-600",
-    border: "border-red-500/20",
-  },
-};
-
-function Section({
-  title,
-  description,
-  running,
-  status,
-  children,
-  logs,
-}: {
-  title: string;
-  description: string;
-  running: boolean;
-  status: "active" | "idle" | "error";
-  children: React.ReactNode;
-  logs: LogEntry[];
-}) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const colors = statusColors[status];
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  return (
-    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-2 p-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    running ? "bg-current animate-pulse" : "bg-current opacity-40"
-                  }`}
-                />
-                {running ? "Running" : status === "error" ? "Error" : "Idle"}
-              </span>
-            </div>
-            <CardDescription className="text-xs">
-              {description}
-            </CardDescription>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">{children}</div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-end p-3 pt-0">
-        <div className="flex h-32 flex-col rounded-lg border bg-muted/50">
-          <div className="flex items-center justify-between border-b px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Event Log
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} {logs.length === 1 ? "event" : "events"}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                Waiting for events...
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((log, i) => (
-                  <div
-                    key={i}
-                    className={`flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted ${
-                      log.type === "error" || log.type === "rejected" ? "text-red-600" :
-                      log.type === "success" || log.type === "completed" ? "text-green-600" :
-                      log.type === "warning" || log.type === "retry" ? "text-orange-600" :
-                      log.type === "fast" ? "text-blue-600" : ""
-                    }`}
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {log.timestamp}
-                    </span>
-                    <span>{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ============ 1. Sync vs Async Demo ============
 
 function SyncAsyncDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const runSync = async () => {
     setRunning(true);
@@ -143,12 +19,11 @@ function SyncAsyncDemo() {
     addLog("⏳ User waiting... browser blocked...", "warning");
     
     const start = Date.now();
-    const res = await fetch(`${API_BASE}/sync/process`, {
+    await fetch(`${API_BASE}/sync/process`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ duration_seconds: 3 }),
     });
-    const data = await res.json();
     
     addLog(`Done after ${Date.now() - start}ms`, "success");
     addLog(`User waited entire time! 😫`, "error");
@@ -170,7 +45,6 @@ function SyncAsyncDemo() {
     addLog(`Response in ${Date.now() - start}ms! Job ID: ${data.job_id}`, "fast");
     addLog("User free to continue! 🎉", "success");
     
-    // Poll for completion
     addLog("Polling for status...");
     let completed = false;
     while (!completed) {
@@ -189,10 +63,8 @@ function SyncAsyncDemo() {
     setRunning(false);
   };
 
-  const reset = () => setLogs([]);
-
   return (
-    <Section
+    <DemoSection
       title="Sync vs Async Processing"
       description="Sync blocks the user. Async returns immediately with a job ID while work happens in background."
       running={running}
@@ -205,26 +77,21 @@ function SyncAsyncDemo() {
       <Button size="sm" disabled={running} onClick={runAsync}>
         Async (Instant)
       </Button>
-      <Button size="sm" variant="outline" disabled={running} onClick={reset}>
+      <Button size="sm" variant="outline" disabled={running} onClick={clearLogs}>
         Clear
       </Button>
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 2. Worker Pool Demo ============
 
 function WorkerPoolDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [workersRunning, setWorkersRunning] = useState(false);
   const [workers, setWorkers] = useState<Array<{ id: string; status: string; jobs_processed: number }>>([]);
   const [stats, setStats] = useState({ queue: 0, completed: 0, processing: 0 });
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`${API_BASE}/workers/status`);
@@ -275,12 +142,12 @@ function WorkerPoolDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     await fetchStatus();
   };
 
   return (
-    <Section
+    <DemoSection
       title="Worker Pool"
       description="Workers pull jobs from queue and process them. Jobs wait in queue until a worker is available."
       running={running || stats.processing > 0}
@@ -332,21 +199,16 @@ function WorkerPoolDemo() {
           ))}
         </div>
       )}
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 3. Backpressure Demo ============
 
 function BackpressureDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [stats, setStats] = useState({ queue: 0, max: 10, rejected: 0 });
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`${API_BASE}/queue/status`);
@@ -382,14 +244,14 @@ function BackpressureDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     await fetchStatus();
   };
 
   const queuePercent = (stats.queue / stats.max) * 100;
 
   return (
-    <Section
+    <DemoSection
       title="Queue Backpressure"
       description="When queue is full, new jobs are rejected. This protects the system from being overwhelmed."
       running={running}
@@ -418,22 +280,17 @@ function BackpressureDemo() {
           />
         </div>
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 4. Dead Letter Queue Demo ============
 
 function DLQDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [dlqCount, setDlqCount] = useState(0);
   const [workersRunning, setWorkersRunning] = useState(false);
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`${API_BASE}/dlq/list`);
@@ -454,7 +311,6 @@ function DLQDemo() {
   const submitFailingJob = async () => {
     setRunning(true);
     
-    // Ensure workers are running
     if (!workersRunning) {
       await fetch(`${API_BASE}/workers/start`, { method: "POST" });
       addLog("Started workers");
@@ -466,7 +322,6 @@ function DLQDemo() {
     addLog(`Submitted failing job ${data.job_id}`);
     addLog(`Will retry ${data.max_retries} times then go to DLQ`, "warning");
     
-    // Wait for retries
     await new Promise(r => setTimeout(r, 4000));
     await fetchStatus();
     addLog(`Job moved to DLQ after ${data.max_retries} failures`, "error");
@@ -496,12 +351,12 @@ function DLQDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     await fetchStatus();
   };
 
   return (
-    <Section
+    <DemoSection
       title="Dead Letter Queue (DLQ)"
       description="Jobs that fail repeatedly go to DLQ for investigation. Prevents poison messages from blocking the queue."
       running={running}
@@ -526,7 +381,7 @@ function DLQDemo() {
           {dlqCount} job{dlqCount !== 1 ? "s" : ""}
         </span>
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
@@ -561,4 +416,3 @@ export default function TasksPage() {
     </div>
   );
 }
-
