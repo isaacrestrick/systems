@@ -8,6 +8,7 @@ from routers.contention import router as contention_router
 from routers.workflows import router as workflows_router
 from routers.reads import router as reads_router
 from routers.writes import router as writes_router
+from routers.tasks import router as tasks_router
 
 app = FastAPI()
 app.include_router(realtime_router)
@@ -15,6 +16,7 @@ app.include_router(contention_router)
 app.include_router(workflows_router)
 app.include_router(reads_router)
 app.include_router(writes_router)
+app.include_router(tasks_router)
 
 app.add_middleware(
     CORSMiddleware,
