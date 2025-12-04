@@ -1,107 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DemoSection } from "@/components/DemoSection";
+import { useEventLog } from "@/lib/hooks";
 
 const API_BASE = "http://localhost:8000/api/contention";
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-}
-
-function Section({
-  title,
-  description,
-  children,
-  logs,
-  status,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-  logs: LogEntry[];
-  status: string;
-}) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  return (
-    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-2 p-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
-              <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
-                {status}
-              </span>
-            </div>
-            <CardDescription className="text-xs">
-              {description}
-            </CardDescription>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">{children}</div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-end p-3 pt-0">
-        <div className="flex h-32 flex-col rounded-lg border bg-muted/50">
-          <div className="flex items-center justify-between border-b px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Event Log
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} {logs.length === 1 ? "event" : "events"}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                Waiting for events...
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((log, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted"
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {log.timestamp}
-                    </span>
-                    <span className="text-foreground">{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function PessimisticLockingDemo() {
   const [balance, setBalance] = useState(1000);
   const [lockedBy, setLockedBy] = useState<string | null>(null);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [loading, setLoading] = useState(false);
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message }]);
-  };
 
   const fetchState = useCallback(async () => {
     try {
@@ -128,24 +38,26 @@ function PessimisticLockingDemo() {
       });
       const data = await res.json();
       if (data.success) {
-        addLog(`${clientId}: ${endpoint} succeeded`);
+        addLog(`${clientId}: ${endpoint} succeeded`, "success");
       } else {
-        addLog(`${clientId}: ${data.message || endpoint + " failed"}`);
+        addLog(`${clientId}: ${data.message || endpoint + " failed"}`, "error");
       }
       await fetchState();
     } catch {
-      addLog(`${clientId}: ${endpoint} error`);
+      addLog(`${clientId}: ${endpoint} error`, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Section
+    <DemoSection
       title="Pessimistic Locking"
       description="SELECT ... FOR UPDATE locks rows before reading. Blocks other transactions until released."
+      running={false}
+      status={lockedBy ? "active" : "idle"}
+      statusLabel={`$${balance} | Lock: ${lockedBy || "none"}`}
       logs={logs}
-      status={`$${balance} | Lock: ${lockedBy || "none"}`}
     >
       {["Client A", "Client B"].map((client) => {
         const isHolder = lockedBy === client;
@@ -164,21 +76,16 @@ function PessimisticLockingDemo() {
           </div>
         );
       })}
-    </Section>
+    </DemoSection>
   );
 }
 
 function OptimisticConcurrencyDemo() {
   const [quantity, setQuantity] = useState(100);
   const [version, setVersion] = useState(1);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [loading, setLoading] = useState(false);
   const [clientVersions, setClientVersions] = useState<Record<string, number>>({ "Client A": 1, "Client B": 1 });
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message }]);
-  };
 
   const fetchState = useCallback(async () => {
     try {
@@ -211,24 +118,26 @@ function OptimisticConcurrencyDemo() {
       const data = await res.json();
       if (data.success) {
         setClientVersions((prev) => ({ ...prev, [client]: data.new_version }));
-        addLog(`${client}: Updated qty by ${change > 0 ? "+" : ""}${change}, now v${data.new_version}`);
+        addLog(`${client}: Updated qty by ${change > 0 ? "+" : ""}${change}, now v${data.new_version}`, "success");
       } else {
-        addLog(`${client}: ${data.message || "Update failed"}`);
+        addLog(`${client}: ${data.message || "Update failed"}`, "error");
       }
       await fetchState();
     } catch {
-      addLog(`${client}: Update error`);
+      addLog(`${client}: Update error`, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Section
+    <DemoSection
       title="Optimistic Concurrency"
       description="Include version in updates. If it changed, retry. Good for low-contention scenarios."
+      running={false}
+      status="idle"
+      statusLabel={`Qty: ${quantity} | v${version}`}
       logs={logs}
-      status={`Qty: ${quantity} | v${version}`}
     >
       {["Client A", "Client B"].map((client) => {
         const cv = clientVersions[client];
@@ -243,20 +152,15 @@ function OptimisticConcurrencyDemo() {
           </div>
         );
       })}
-    </Section>
+    </DemoSection>
   );
 }
 
 function DistributedLockDemo() {
   const [lockHolder, setLockHolder] = useState<string | null>(null);
   const [ttl, setTtl] = useState(0);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [loading, setLoading] = useState(false);
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message }]);
-  };
 
   const fetchState = useCallback(async () => {
     try {
@@ -279,24 +183,26 @@ function DistributedLockDemo() {
       const res = await fetch(`${API_BASE}/distributed/${endpoint}?client_id=${encodeURIComponent(client)}${endpoint === "acquire" ? "&ttl=10" : endpoint === "work" ? "&duration=3" : ""}`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        addLog(`${client}: ${endpoint} succeeded`);
+        addLog(`${client}: ${endpoint} succeeded`, "success");
       } else {
-        addLog(`${client}: ${data.message || endpoint + " failed"}`);
+        addLog(`${client}: ${data.message || endpoint + " failed"}`, "error");
       }
       await fetchState();
     } catch {
-      addLog(`${client}: ${endpoint} error`);
+      addLog(`${client}: ${endpoint} error`, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Section
+    <DemoSection
       title="Distributed Lock"
       description="Redis-style lock with TTL. Auto-expires to prevent deadlocks. Extend before expiry."
+      running={!!lockHolder}
+      status={lockHolder ? "active" : "idle"}
+      statusLabel={lockHolder ? `${lockHolder} (${ttl.toFixed(1)}s)` : "Unlocked"}
       logs={logs}
-      status={lockHolder ? `${lockHolder} (${ttl.toFixed(1)}s)` : "Unlocked"}
     >
       {["Client A", "Client B"].map((client) => {
         const isHolder = lockHolder === client;
@@ -315,18 +221,13 @@ function DistributedLockDemo() {
           </div>
         );
       })}
-    </Section>
+    </DemoSection>
   );
 }
 
 function SagaPatternDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message }]);
-  };
 
   const runSaga = async (shouldFail: boolean) => {
     setRunning(true);
@@ -339,29 +240,31 @@ function SagaPatternDemo() {
         await new Promise((r) => setTimeout(r, 800));
 
         if (shouldFail && i === 1) {
-          addLog(`Step ${i + 1}: FAILED`);
-          addLog("Starting compensation...");
+          addLog(`Step ${i + 1}: FAILED`, "error");
+          addLog("Starting compensation...", "warning");
           for (let j = i; j >= 0; j--) {
             await new Promise((r) => setTimeout(r, 500));
-            addLog(`Compensate: ${compensations[j]}`);
+            addLog(`Compensate: ${compensations[j]}`, "warning");
           }
-          addLog("Saga rolled back");
+          addLog("Saga rolled back", "error");
           return;
         }
-        addLog(`Step ${i + 1}: OK`);
+        addLog(`Step ${i + 1}: OK`, "success");
       }
-      addLog("Saga completed successfully");
+      addLog("Saga completed successfully", "complete");
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <Section
+    <DemoSection
       title="Saga Pattern"
       description="Break transactions into steps with compensating actions. Each step can be undone if later steps fail."
+      running={running}
+      status={running ? "active" : "idle"}
+      statusLabel={running ? "Running..." : "Idle"}
       logs={logs}
-      status={running ? "Running..." : "Idle"}
     >
       <Button size="sm" variant="outline" disabled={running} onClick={() => runSaga(false)}>
         Run (Success)
@@ -369,10 +272,10 @@ function SagaPatternDemo() {
       <Button size="sm" variant="outline" disabled={running} onClick={() => runSaga(true)}>
         Run (Fail at Step 2)
       </Button>
-      <Button size="sm" variant="outline" disabled={running} onClick={() => setLogs([])}>
+      <Button size="sm" variant="outline" disabled={running} onClick={clearLogs}>
         Clear
       </Button>
-    </Section>
+    </DemoSection>
   );
 }
 

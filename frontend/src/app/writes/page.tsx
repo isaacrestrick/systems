@@ -1,141 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DemoSection } from "@/components/DemoSection";
+import { useEventLog } from "@/lib/hooks";
 
 const API_BASE = "http://localhost:8000/api/writes";
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  type?: string;
-}
-
-const statusColors = {
-  active: {
-    bg: "bg-green-500/10",
-    text: "text-green-600",
-    border: "border-green-500/20",
-  },
-  idle: {
-    bg: "bg-orange-500/10",
-    text: "text-orange-600",
-    border: "border-orange-500/20",
-  },
-  error: {
-    bg: "bg-red-500/10",
-    text: "text-red-600",
-    border: "border-red-500/20",
-  },
-};
-
-function Section({
-  title,
-  description,
-  running,
-  status,
-  children,
-  logs,
-}: {
-  title: string;
-  description: string;
-  running: boolean;
-  status: "active" | "idle" | "error";
-  children: React.ReactNode;
-  logs: LogEntry[];
-}) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const colors = statusColors[status];
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  return (
-    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-2 p-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    running ? "bg-current animate-pulse" : "bg-current opacity-40"
-                  }`}
-                />
-                {running ? "Running" : status === "error" ? "Failed" : "Idle"}
-              </span>
-            </div>
-            <CardDescription className="text-xs">
-              {description}
-            </CardDescription>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">{children}</div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-end p-3 pt-0">
-        <div className="flex h-32 flex-col rounded-lg border bg-muted/50">
-          <div className="flex items-center justify-between border-b px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Event Log
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} {logs.length === 1 ? "event" : "events"}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                Waiting for events...
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((log, i) => (
-                  <div
-                    key={i}
-                    className={`flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted ${
-                      log.type === "error" ? "text-red-600" :
-                      log.type === "success" || log.type === "fast" ? "text-green-600" :
-                      log.type === "slow" ? "text-orange-600" :
-                      log.type === "dropped" ? "text-red-500" : ""
-                    }`}
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {log.timestamp}
-                    </span>
-                    <span>{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ============ 1. Vertical Scaling Demo ============
 
 function VerticalScalingDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const writeToDb = async (dbType: string) => {
     setRunning(true);
@@ -156,14 +32,14 @@ function VerticalScalingDemo() {
 
   const runBenchmark = async () => {
     setRunning(true);
-    addLog("Running benchmark across all DB types...", "start");
+    addLog("Running benchmark across all DB types...");
     
     const res = await fetch(`${API_BASE}/vertical/benchmark?count=10`, {
       method: "POST",
     });
     const data = await res.json();
     
-    for (const [dbType, result] of Object.entries(data.benchmark) as [string, { name: string; avg_latency_ms: number; writes_per_sec: number }][]) {
+    for (const [, result] of Object.entries(data.benchmark) as [string, { name: string; avg_latency_ms: number; writes_per_sec: number }][]) {
       const speed = result.avg_latency_ms < 15 ? "fast" : result.avg_latency_ms < 35 ? "success" : "slow";
       addLog(`${result.name}: ${result.avg_latency_ms}ms avg, ${result.writes_per_sec} w/s`, speed);
     }
@@ -174,11 +50,11 @@ function VerticalScalingDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
   };
 
   return (
-    <Section
+    <DemoSection
       title="Vertical Scaling & DB Choice"
       description="Different databases optimize for different workloads. Append-only DBs (like Cassandra) are 10x faster for writes."
       running={running}
@@ -200,26 +76,21 @@ function VerticalScalingDemo() {
       <Button size="sm" variant="outline" disabled={running} onClick={reset}>
         Reset
       </Button>
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 2. Sharding Demo ============
 
 function ShardingDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [shardStats, setShardStats] = useState([0, 0, 0, 0]);
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const burstWrite = async (useBadSharding: boolean) => {
     setRunning(true);
     const strategy = useBadSharding ? "bad (prefix-based)" : "good (hash-based)";
-    addLog(`Burst: 20 writes with ${strategy} sharding...`, "start");
+    addLog(`Burst: 20 writes with ${strategy} sharding...`);
     
     const res = await fetch(`${API_BASE}/sharding/burst?count=20&use_bad_sharding=${useBadSharding}&key_prefix=user`, {
       method: "POST",
@@ -240,12 +111,12 @@ function ShardingDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     setShardStats([0, 0, 0, 0]);
   };
 
   return (
-    <Section
+    <DemoSection
       title="Sharding & Partitioning"
       description="Distribute writes across shards. Good keys spread load evenly; bad keys create hot spots."
       running={running}
@@ -275,22 +146,17 @@ function ShardingDemo() {
           </div>
         ))}
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 3. Queue & Load Shedding Demo ============
 
 function QueueDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [processorRunning, setProcessorRunning] = useState(false);
   const [stats, setStats] = useState({ queued: 0, processed: 0, dropped: 0, depth: 0 });
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const toggleProcessor = async () => {
     if (processorRunning) {
@@ -310,7 +176,7 @@ function QueueDemo() {
 
   const sendBurst = async () => {
     setRunning(true);
-    addLog("Sending burst of 40 writes (mixed priority)...", "start");
+    addLog("Sending burst of 40 writes (mixed priority)...");
     
     const res = await fetch(`${API_BASE}/queue/burst?count=40&mixed_priority=true`, {
       method: "POST",
@@ -337,12 +203,11 @@ function QueueDemo() {
   const reset = async () => {
     await fetch(`${API_BASE}/queue/stop-processor`, { method: "POST" });
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     setProcessorRunning(false);
     setStats({ queued: 0, processed: 0, dropped: 0, depth: 0 });
   };
 
-  // Poll for stats when processor is running
   useEffect(() => {
     if (!processorRunning) return;
     
@@ -361,7 +226,7 @@ function QueueDemo() {
   }, [processorRunning]);
 
   return (
-    <Section
+    <DemoSection
       title="Queues & Load Shedding"
       description="Buffer writes with queues. When overwhelmed, shed low-priority writes to protect the system."
       running={running}
@@ -399,25 +264,20 @@ function QueueDemo() {
           <div className="font-medium">{stats.depth}</div>
         </div>
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ 4. Batching Demo ============
 
 function BatchingDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [stats, setStats] = useState({ individual: 0, batched: 0, dbOps: 0 });
 
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
-
   const compareBatching = async () => {
     setRunning(true);
-    addLog("Comparing individual vs batched writes...", "start");
+    addLog("Comparing individual vs batched writes...");
     
     const res = await fetch(`${API_BASE}/batching/compare?count=20`, {
       method: "POST",
@@ -438,7 +298,7 @@ function BatchingDemo() {
 
   const runAggregation = async () => {
     setRunning(true);
-    addLog("Simulating 100 likes with hierarchical aggregation...", "start");
+    addLog("Simulating 100 likes with hierarchical aggregation...");
     
     const res = await fetch(`${API_BASE}/aggregation/burst?key=viral_post&count=100`, {
       method: "POST",
@@ -449,7 +309,6 @@ function BatchingDemo() {
     addLog(`Leaf: ${data.leaf_value}, Aggregator: ${data.aggregator_value}, Root: ${data.root_value}`);
     addLog(`Total count: ${data.total}`, "success");
     
-    // Flush to "database"
     const flushRes = await fetch(`${API_BASE}/aggregation/flush-to-root`, { method: "POST" });
     const flushData = await flushRes.json();
     addLog(`Flushed ${flushData.total_flushed} to root (1 DB write)`, "fast");
@@ -459,12 +318,12 @@ function BatchingDemo() {
 
   const reset = async () => {
     await fetch(`${API_BASE}/reset`, { method: "POST" });
-    setLogs([]);
+    clearLogs();
     setStats({ individual: 0, batched: 0, dbOps: 0 });
   };
 
   return (
-    <Section
+    <DemoSection
       title="Batching & Aggregation"
       description="Batch writes together to reduce DB operations. Hierarchical aggregation handles viral content."
       running={running}
@@ -485,7 +344,7 @@ function BatchingDemo() {
         <span>Batched ops: {stats.batched}</span>
         <span className="text-green-600">Saved: {stats.dbOps}</span>
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
@@ -520,4 +379,3 @@ export default function WritesPage() {
     </div>
   );
 }
-

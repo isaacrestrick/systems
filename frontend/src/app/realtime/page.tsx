@@ -2,127 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-}
-
-type PatternType = "sse" | "websocket" | "polling" | "long-polling";
-
-const statusColors = {
-  active: {
-    bg: "bg-green-500/10",
-    text: "text-green-600",
-    border: "border-green-500/20",
-  },
-  idle: {
-    bg: "bg-orange-500/10",
-    text: "text-orange-600",
-    border: "border-orange-500/20",
-  },
-};
-
-function Section({
-  title,
-  description,
-  running,
-  onStart,
-  onStop,
-  logs,
-  pattern,
-}: {
-  title: string;
-  description: string;
-  running: boolean;
-  onStart: () => void;
-  onStop: () => void;
-  logs: LogEntry[];
-  pattern: PatternType;
-}) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const colors = running ? statusColors.active : statusColors.idle;
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  return (
-    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-3 p-4 pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    running ? "bg-current animate-pulse" : "bg-current opacity-40"
-                  }`}
-                />
-                {running ? "Active" : "Idle"}
-              </span>
-            </div>
-            <CardDescription className="text-sm leading-relaxed">
-              {description}
-            </CardDescription>
-          </div>
-          <Button
-            onClick={running ? onStop : onStart}
-            variant={running ? "destructive" : "default"}
-            size="sm"
-            className="shrink-0"
-          >
-            {running ? "Stop" : "Start"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 p-4 pt-0">
-        <div className="flex h-40 flex-col rounded-lg border bg-muted/50">
-          <div className="flex items-center justify-between border-b px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Event Log
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} {logs.length === 1 ? "event" : "events"}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                Waiting for events...
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((log, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted"
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {log.timestamp}
-                    </span>
-                    <span className="text-foreground">{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { DemoSection, LogEntry } from "@/components/DemoSection";
 
 export default function RealtimePage() {
 
@@ -151,7 +31,7 @@ export default function RealtimePage() {
     message: string
   ) => {
     const timestamp = new Date().toLocaleTimeString();
-    setter((prev) => [...prev.slice(-19), { timestamp, message }]); // ?
+    setter((prev) => [...prev.slice(-19), { timestamp, message }]);
   };
 
   // SSE handlers
@@ -247,7 +127,6 @@ export default function RealtimePage() {
 
   // Long Polling handlers
   const startLongPolling = useCallback(() => {
-    // Prevent multiple overlapping loops
     if (longPollRunning) return;
 
     const controller = new AbortController();
@@ -313,45 +192,73 @@ export default function RealtimePage() {
       </header>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Section
+        <DemoSection
           title="Server-Sent Events"
           description="One-way server-to-client streaming over HTTP. Ideal for live feeds, notifications, and dashboards."
           running={sseRunning}
-          onStart={startSse}
-          onStop={stopSse}
+          status={sseRunning ? "active" : "idle"}
+          statusLabel={sseRunning ? "Active" : "Idle"}
           logs={sseLogs}
-          pattern="sse"
-        />
+        >
+          <Button
+            size="sm"
+            variant={sseRunning ? "destructive" : "default"}
+            onClick={sseRunning ? stopSse : startSse}
+          >
+            {sseRunning ? "Stop" : "Start"}
+          </Button>
+        </DemoSection>
 
-        <Section
+        <DemoSection
           title="WebSocket"
           description="Full-duplex bidirectional communication. Best for chat, gaming, and collaborative apps."
           running={wsRunning}
-          onStart={startWs}
-          onStop={stopWs}
+          status={wsRunning ? "active" : "idle"}
+          statusLabel={wsRunning ? "Active" : "Idle"}
           logs={wsLogs}
-          pattern="websocket"
-        />
+        >
+          <Button
+            size="sm"
+            variant={wsRunning ? "destructive" : "default"}
+            onClick={wsRunning ? stopWs : startWs}
+          >
+            {wsRunning ? "Stop" : "Start"}
+          </Button>
+        </DemoSection>
 
-        <Section
+        <DemoSection
           title="Polling"
           description="Client requests updates at fixed intervals (2s). Simple but less efficient for frequent updates."
           running={pollRunning}
-          onStart={startPolling}
-          onStop={stopPolling}
+          status={pollRunning ? "active" : "idle"}
+          statusLabel={pollRunning ? "Active" : "Idle"}
           logs={pollLogs}
-          pattern="polling"
-        />
+        >
+          <Button
+            size="sm"
+            variant={pollRunning ? "destructive" : "default"}
+            onClick={pollRunning ? stopPolling : startPolling}
+          >
+            {pollRunning ? "Stop" : "Start"}
+          </Button>
+        </DemoSection>
 
-        <Section
+        <DemoSection
           title="Long Polling"
           description="Server holds request until data is available. Good fallback when WebSocket isn't an option."
           running={longPollRunning}
-          onStart={startLongPolling}
-          onStop={stopLongPolling}
+          status={longPollRunning ? "active" : "idle"}
+          statusLabel={longPollRunning ? "Active" : "Idle"}
           logs={longPollLogs}
-          pattern="long-polling"
-        />
+        >
+          <Button
+            size="sm"
+            variant={longPollRunning ? "destructive" : "default"}
+            onClick={longPollRunning ? stopLongPolling : startLongPolling}
+          >
+            {longPollRunning ? "Stop" : "Start"}
+          </Button>
+        </DemoSection>
       </div>
     </div>
   );

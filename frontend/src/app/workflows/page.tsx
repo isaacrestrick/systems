@@ -1,129 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DemoSection, LogEntry } from "@/components/DemoSection";
+import { useEventLog } from "@/lib/hooks";
 
 const API_BASE = "http://localhost:8000/api/workflows";
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  type?: string;
-}
-
-const statusColors = {
-  active: {
-    bg: "bg-green-500/10",
-    text: "text-green-600",
-    border: "border-green-500/20",
-  },
-  idle: {
-    bg: "bg-orange-500/10",
-    text: "text-orange-600",
-    border: "border-orange-500/20",
-  },
-  error: {
-    bg: "bg-red-500/10",
-    text: "text-red-600",
-    border: "border-red-500/20",
-  },
-};
-
-function Section({
-  title,
-  description,
-  running,
-  status,
-  children,
-  logs,
-}: {
-  title: string;
-  description: string;
-  running: boolean;
-  status: "active" | "idle" | "error";
-  children: React.ReactNode;
-  logs: LogEntry[];
-}) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const colors = statusColors[status];
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  return (
-    <Card className="flex flex-col overflow-hidden border-2 transition-all hover:shadow-md">
-      <CardHeader className="space-y-2 p-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} ${colors.border}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    running ? "bg-current animate-pulse" : "bg-current opacity-40"
-                  }`}
-                />
-                {running ? "Running" : status === "error" ? "Failed" : "Idle"}
-              </span>
-            </div>
-            <CardDescription className="text-xs">
-              {description}
-            </CardDescription>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">{children}</div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-end p-3 pt-0">
-        <div className="flex h-32 flex-col rounded-lg border bg-muted/50">
-          <div className="flex items-center justify-between border-b px-3 py-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Event Log
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} {logs.length === 1 ? "event" : "events"}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                Waiting for events...
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((log, i) => (
-                  <div
-                    key={i}
-                    className={`flex gap-2 rounded px-1.5 py-0.5 hover:bg-muted ${
-                      log.type === "error" ? "text-red-600" :
-                      log.type === "success" || log.type === "complete" ? "text-green-600" :
-                      log.type === "compensate" || log.type === "rollback_start" ? "text-orange-600" : ""
-                    }`}
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {log.timestamp}
-                    </span>
-                    <span>{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ============ Saga Pattern Demo ============
 
@@ -151,9 +33,8 @@ function SagaDemo() {
     });
     const data = await res.json();
     setWorkflowId(data.workflow_id);
-    addLog(`Started saga ${data.workflow_id}`, "start");
+    addLog(`Started saga ${data.workflow_id}`);
 
-    // Run steps automatically
     let continueRunning = true;
     while (continueRunning) {
       await new Promise((r) => setTimeout(r, 100));
@@ -163,7 +44,6 @@ function SagaDemo() {
       });
       const stepData = await stepRes.json();
 
-      // Fetch current state
       const stateRes = await fetch(`${API_BASE}/saga/${data.workflow_id}`);
       const state = await stateRes.json();
 
@@ -171,7 +51,6 @@ function SagaDemo() {
         setSteps(state.workflow.steps);
       }
 
-      // Add logs from server
       if (state.logs) {
         const serverLogs = state.logs.map((l: { timestamp: number; event: string; type: string }) => ({
           timestamp: new Date(l.timestamp * 1000).toLocaleTimeString(),
@@ -201,7 +80,7 @@ function SagaDemo() {
   };
 
   return (
-    <Section
+    <DemoSection
       title="Saga Pattern"
       description="Multi-step transaction with compensating actions. If a step fails, previous steps are rolled back in reverse order."
       running={running}
@@ -239,23 +118,18 @@ function SagaDemo() {
           ))}
         </div>
       )}
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ Event Sourcing Demo ============
 
 function EventSourcingDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [events, setEvents] = useState<Array<{ type: string; data: { amount: number }; version: number }>>([]);
   const [balance, setBalance] = useState(0);
   const [running, setRunning] = useState(false);
   const aggregateId = "account-1";
-
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
 
   const fetchState = useCallback(async () => {
     const res = await fetch(`${API_BASE}/events/${aggregateId}`);
@@ -286,7 +160,7 @@ function EventSourcingDemo() {
 
   const replay = async () => {
     setRunning(true);
-    addLog("Replaying events from log...", "start");
+    addLog("Replaying events from log...");
     const res = await fetch(`${API_BASE}/events/${aggregateId}/replay`, { method: "POST" });
     const data = await res.json();
     for (const step of data.replay_log || []) {
@@ -300,13 +174,13 @@ function EventSourcingDemo() {
 
   const clear = async () => {
     await fetch(`${API_BASE}/events/${aggregateId}`, { method: "DELETE" });
-    setLogs([]);
+    clearLogs();
     setEvents([]);
     setBalance(0);
   };
 
   return (
-    <Section
+    <DemoSection
       title="Event Sourcing"
       description="Store events instead of state. Replay events to rebuild current state. Perfect audit trail."
       running={running}
@@ -329,7 +203,7 @@ function EventSourcingDemo() {
         <span className="text-muted-foreground">{events.length} events</span>
         <span className="font-mono font-bold">Balance: ${balance}</span>
       </div>
-    </Section>
+    </DemoSection>
   );
 }
 
@@ -337,20 +211,15 @@ function EventSourcingDemo() {
 
 function DurableExecutionDemo() {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState<Array<{ step: string }>>([]);
   const [crashed, setCrashed] = useState(false);
 
   const steps = ["Validate Order", "Process Payment", "Update Inventory", "Send Notification"];
 
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
-
   const startWorkflow = async () => {
-    setLogs([]);
+    clearLogs();
     setHistory([]);
     setCrashed(false);
     setRunning(true);
@@ -362,7 +231,7 @@ function DurableExecutionDemo() {
     });
     const data = await res.json();
     setWorkflowId(data.workflow_id);
-    addLog(`Started workflow ${data.workflow_id}`, "start");
+    addLog(`Started workflow ${data.workflow_id}`);
     setRunning(false);
   };
 
@@ -402,7 +271,7 @@ function DurableExecutionDemo() {
     const data = await res.json();
 
     addLog(`Recovered! ${data.completed_steps} steps in history`, "success");
-    addLog(`Next step: ${data.next_step || "none"}`, "start");
+    addLog(`Next step: ${data.next_step || "none"}`);
     setCrashed(false);
     setHistory(data.history || []);
     setRunning(false);
@@ -410,13 +279,13 @@ function DurableExecutionDemo() {
 
   const reset = () => {
     setWorkflowId(null);
-    setLogs([]);
+    clearLogs();
     setHistory([]);
     setCrashed(false);
   };
 
   return (
-    <Section
+    <DemoSection
       title="Durable Execution"
       description="Workflow state survives crashes. History enables replay-based recovery without re-executing completed steps."
       running={running}
@@ -462,26 +331,21 @@ function DurableExecutionDemo() {
           ))}
         </div>
       )}
-    </Section>
+    </DemoSection>
   );
 }
 
 // ============ Workflow Comparison Demo ============
 
 function ComparisonDemo() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, addLog, clearLogs] = useEventLog();
   const [running, setRunning] = useState(false);
 
-  const addLog = useCallback((message: string, type?: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev.slice(-19), { timestamp, message, type }]);
-  }, []);
-
   const simulateNaive = async () => {
-    setLogs([]);
+    clearLogs();
     setRunning(true);
 
-    addLog("Starting naive orchestration...", "start");
+    addLog("Starting naive orchestration...");
     await new Promise((r) => setTimeout(r, 500));
     addLog("Step 1: Charge payment... OK");
     await new Promise((r) => setTimeout(r, 500));
@@ -497,10 +361,10 @@ function ComparisonDemo() {
   };
 
   const simulateWorkflow = async () => {
-    setLogs([]);
+    clearLogs();
     setRunning(true);
 
-    addLog("Starting workflow orchestration...", "start");
+    addLog("Starting workflow orchestration...");
     await new Promise((r) => setTimeout(r, 500));
     addLog("Step 1: Charge payment... OK (saved to history)");
     await new Promise((r) => setTimeout(r, 500));
@@ -509,7 +373,7 @@ function ComparisonDemo() {
     addLog("Step 3: SERVER CRASHED!", "error");
     await new Promise((r) => setTimeout(r, 300));
     addLog("Server restarted...");
-    addLog("Recovering from history...", "start");
+    addLog("Recovering from history...");
     await new Promise((r) => setTimeout(r, 300));
     addLog("Found 2 completed steps in history", "success");
     addLog("Resuming from step 3...");
@@ -521,7 +385,7 @@ function ComparisonDemo() {
   };
 
   return (
-    <Section
+    <DemoSection
       title="Naive vs Workflow"
       description="Compare what happens when a server crashes during a multi-step process."
       running={running}
@@ -534,10 +398,10 @@ function ComparisonDemo() {
       <Button size="sm" disabled={running} onClick={simulateWorkflow}>
         Workflow (Recovers)
       </Button>
-      <Button size="sm" variant="outline" disabled={running} onClick={() => setLogs([])}>
+      <Button size="sm" variant="outline" disabled={running} onClick={clearLogs}>
         Reset
       </Button>
-    </Section>
+    </DemoSection>
   );
 }
 
