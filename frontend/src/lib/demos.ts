@@ -1,4 +1,4 @@
-import { Radio, Lock, GitBranch, Database, PenLine } from "lucide-react";
+import { Radio, Lock, GitBranch, Database, PenLine, Clock } from "lucide-react";
 
 export const demos = [
   {
@@ -30,5 +30,11 @@ export const demos = [
     title: "Scaling Writes",
     description: "Learn sharding, batching, queues, and write optimization",
     icon: PenLine,
+  },
+  {
+    href: "/tasks",
+    title: "Long Running Tasks",
+    description: "Async job queues, worker pools, and background processing",
+    icon: Clock,
   },
 ];
